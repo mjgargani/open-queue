@@ -1,73 +1,143 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { fetchQueueData } from '@/lib/fetchQueue';
+import { CurrentState } from '@/types';
 
-export default function Manage() {
-  const [queue, setQueue] = useState<string[]>([]);
-  const [guiche, setGuiche] = useState(1);
+export default function ManagePage() {
+  const [currentStates, setCurrentStates] = useState<CurrentState[]>([]);
+  const [queue, setQueue] = useState<number[]>([]);
+  const [guiche, setGuiche] = useState<number>(1);
+  const [isGuicheLocked, setIsGuicheLocked] = useState<boolean>(false);
+  const [, setError] = useState<string | null>(null);
 
-  const fetchQueue = async () => {
-    const res = await fetch('/api/queue');
-    const data = await res.json();
-    setQueue(data.queue);
+  const updateQueueData = async () => {
+    try {
+      const data = await fetchQueueData();
+      setCurrentStates(data.currentStates);
+      setQueue(data.queue);
+    } catch {
+      setError('Erro ao buscar dados da fila');
+    }
   };
 
   const callNext = async () => {
-    await fetch('/api/manage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'call-next', guiche }),
-    });
-    fetchQueue();
+    if (queue.length === 0) {
+      alert('A fila está vazia!');
+      return;
+    }
+
+    const nextNumber = queue[0];
+    if (nextNumber && confirm('Chamar próximo?')) {
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'call-next', guiche }),
+      });
+
+      if (res.ok) {
+        updateQueueData();
+      } else {
+        alert('Erro ao chamar próximo número.');
+      }
+    }
   };
 
-  const undo = async () => {
-    await fetch('/api/manage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'undo' }),
-    });
-    fetchQueue();
+  const cancel = async () => {
+    const current = currentStates.find((state) => state.guiche === guiche);
+
+    if (!current) {
+      alert('Nenhum atendimento em andamento para cancelar.');
+      return;
+    }
+
+    if (confirm(`Cancelar chamada de '${current.number}'?`)) {
+      const res = await fetch('/api/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'undo', guiche }),
+      });
+
+      if (res.ok) {
+        updateQueueData();
+      } else {
+        alert('Erro ao cancelar chamada.');
+      }
+    }
+  };
+
+  const toggleGuicheLock = () => {
+    setIsGuicheLocked((prev) => !prev);
   };
 
   useEffect(() => {
-    fetchQueue();
+    updateQueueData();
   }, []);
+
+  const current = currentStates.find((state) => state.guiche === guiche);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Gerenciamento da Fila</h1>
-      <div className="flex items-center gap-4 mb-6">
-        <label htmlFor="guiche" className="text-lg font-medium text-gray-700">
-          Guichê:
-        </label>
-        <input
-          id="guiche"
-          type="number"
-          value={guiche}
-          onChange={(e) => setGuiche(parseInt(e.target.value, 10))}
-          className="w-16 p-2 border border-gray-300 rounded-md shadow-sm focus:ring focus:ring-indigo-300"
-        />
+      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold text-center mb-4">Gerenciamento da Fila</h1>
+        <div className="mb-4">
+          <label htmlFor="guiche" className="block text-lg font-semibold">
+            Guichê:
+          </label>
+          <div className="flex items-center space-x-2">
+            <input
+              id="guiche"
+              type="number"
+              value={guiche}
+              onChange={(e) => setGuiche(Number(e.target.value))}
+              className="w-full p-2 border rounded-md"
+              disabled={isGuicheLocked}
+            />
+            <button
+              onClick={toggleGuicheLock}
+              className={`px-4 py-2 rounded-md text-white ${
+                isGuicheLocked
+                  ? 'bg-gray-500 hover:bg-gray-600 focus:ring focus:ring-gray-300'
+                  : 'bg-green-500 hover:bg-green-600 focus:ring focus:ring-green-300'
+              }`}
+            >
+              {isGuicheLocked ? 'Liberar Guichê' : 'Travar Guichê'}
+            </button>
+          </div>
+        </div>
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold">
+            {current
+              ? `Você está atendendo o número: ${current.number}`
+              : 'Você não está em atendimento.'}
+          </h2>
+        </div>
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold">Atendendo agora:</h2>
+          {currentStates.map((state) => (
+            <div
+              key={state.guiche}
+              className={`text-lg ${
+                state.guiche === guiche ? 'font-bold' : ''
+              }`}
+            >
+              Guichê {state.guiche}: Número {state.number}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between">
+          <button
+            onClick={callNext}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring focus:ring-blue-300"
+          >
+            Chamar Próximo
+          </button>
+          <button
+            onClick={cancel}
+            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:ring focus:ring-red-300"
+          >
+            Cancelar
+          </button>
+        </div>
       </div>
-      <div className="flex gap-4 mb-6">
-        <button
-          onClick={callNext}
-          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:ring focus:ring-blue-300"
-        >
-          Chamar Próximo
-        </button>
-        <button
-          onClick={undo}
-          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:ring focus:ring-gray-300"
-        >
-          Desfazer
-        </button>
-      </div>
-      <ul className="w-full max-w-md bg-white rounded-lg shadow divide-y divide-gray-200">
-        {queue.map((q, idx) => (
-          <li key={idx} className="p-4 text-gray-700">
-            Número {q}
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

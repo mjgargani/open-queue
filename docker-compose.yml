@@ -4,19 +4,18 @@ services:
     container_name: queue-redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis-data:/data
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: queue-app
     ports:
       - "80:3000"
     environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      - REDIS_HOST=queue-redis
+      - REDIS_PORT=6379
+      - QUEUE_START=1
+      - QUEUE_END=10000
     depends_on:
       - redis
-
-volumes:
-  redis-data:
