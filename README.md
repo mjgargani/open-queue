@@ -1,3 +1,5 @@
+DEPRECIATED, needs revalidation
+
 # Queue Management System
 
 A robust queue management system built with Next.js and Redis. It provides real-time updates, audio feedback, and a user-friendly interface for administrators and clients to manage and view the queue.
