@@ -1,4 +1,4 @@
-WIP: needs revalidation
+![20250116_105052](https://github.com/user-attachments/assets/7f8ff09f-63ea-407f-84a8-871928f26ae9)
 
 # Queue Management System
 
