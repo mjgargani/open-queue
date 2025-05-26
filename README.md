@@ -1,4 +1,4 @@
-DEPRECIATED, needs revalidation
+WIP: needs revalidation
 
 # Queue Management System
 
